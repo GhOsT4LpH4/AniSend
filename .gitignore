@@ -1,0 +1,44 @@
+# Rust/Cargo build artifacts
+/target/
+**/target/
+Cargo.lock
+
+# Soroban / WASM build artifacts
+**/*.wasm
+**/*.wasm.map
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Test output and temporary files
+*.out
+*.log
+.test-result
+
+test_snapshots/
+
+# Generated files
+*.rmeta
+*.d
+**/*.d
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+Desktop.ini
+$RECYCLE.BIN/
+
+# Ignore environment files
+.env
+.env.*
+
+# Ignore build scripts and local caches
+**/cargo-cache/
+**/target/
