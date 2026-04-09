@@ -1,5 +1,9 @@
 # AniSend
 
+<p align="center">
+  <img src="images/icon.svg" alt="AniSend icon" width="96" height="96" />
+</p>
+
 Livestock auction escrow for Filipino smallholder farmers, built on Stellar.
 
 ---
@@ -12,6 +16,12 @@ A smallholder carabao farmer in Nueva Ecija, Philippines lists a ₱45,000 draft
 
 AniSend lets a buyer deposit funds into a Soroban smart contract escrow and releases payment only when **both** buyer and seller confirm delivery — making escrow economically viable for ₱5k–₱60k transactions with sub-cent fees and ~5 second settlement.
 
+**What the dApp does (in plain terms):**
+- **Locks funds on-chain**: the buyer deposits the exact token amount into the escrow contract.
+- **Enforces mutual confirmation**: funds are released only after both buyer and seller confirm.
+- **Prevents “stuck money”**: after deposit, the buyer can reclaim funds via a **timelocked refund** if the flow doesn’t complete.
+- **Keeps the UI fast**: Convex mirrors deal metadata and logs activity, while the UI reads the authoritative status from chain.
+
 ---
 
 ## Demo Flow (2 minutes)
@@ -19,8 +29,12 @@ AniSend lets a buyer deposit funds into a Soroban smart contract escrow and rele
 1. Connect Freighter wallet (testnet)
 2. Seller creates a deal (buyer address, amount, animal description)
 3. Buyer deposits into escrow on-chain
-4. Buyer confirms delivery
-5. Seller confirms handoff → funds release to seller
+4. Buyer confirms receipt after inspection
+5. Seller confirms handoff → escrow auto-releases funds to the seller
+
+Optional paths:
+- **Before deposit**: either party can cancel the listing (no funds are locked).
+- **After deposit**: only the buyer can cancel **after the timelock expires** to trigger an on-chain refund.
 
 ---
 
@@ -39,6 +53,11 @@ Stellar Testnet
 ```
 
 No traditional backend server. Deal authority lives on-chain. Convex mirrors key deal metadata for fast UI lists and activity feeds (status is read from chain in the UI).
+
+**On-chain vs off-chain responsibilities**
+- **Soroban contract (source of truth)**: custody of funds, deal state machine, authorization checks, timelock refund rules.
+- **Frontend (client)**: Freighter connect + signing, contract invoke + RPC reads, renders the current state.
+- **Convex (index + activity feed)**: stores deal metadata for listing/history, logs user-visible activity events; the UI still re-checks the chain for the latest status/amount.
 
 ---
 
@@ -78,6 +97,7 @@ anisend/
 | Soroban token interface | Transfers in/out of escrow (demo uses XLM via SAC; can be USDC) |
 | Trustlines (when using USDC) | Participants must hold/trust the token before receiving funds |
 | Soroban RPC | Read/write contract state from the UI |
+| Events | Contract emits events (`created`, `deposit`, `c_buyer`, `c_seller`, `cancel`) for indexers/UI |
 
 ---
 
@@ -102,6 +122,15 @@ Set your deployed Contract ID in the frontend env (`VITE_CONTRACT_ID`) to point 
 | `cancel(caller, deal_id)` | Buyer or Seller | Cancels; refunds buyer if funded (buyer-only + timelock) |
 | `get_escrow(deal_id)` | Anyone | Read-only deal state |
 
+**Key rules enforced by the contract (`src/lib.rs`):**
+- **Authorized roles**: only the designated `seller`/`buyer` can act on a deal.
+- **Exact-amount deposit**: escrow transfers the deal’s configured `amount` from buyer → contract.
+- **Mutual confirmation release**: whichever side confirms second triggers the payout (contract → seller).
+- **Cancellation safety**:
+  - **AwaitingDeposit**: seller or buyer may cancel freely (nothing to refund).
+  - **After deposit**: only the buyer may cancel, and only **after `expires_ledger`** (timelock) to avoid griefing and prevent indefinite lockups.
+- **Token-agnostic**: uses Soroban token interface; works with XLM via SAC on testnet or any token contract (e.g., USDC).
+
 ### Escrow Status Lifecycle
 
 ```
@@ -109,7 +138,7 @@ AwaitingDeposit --> Funded --> BuyerConfirmed ----\
                  |         \-> SellerConfirmed ---+--> Completed (funds released)
                  \-------------------------------> Cancelled (refund rules apply)
 ```
-![alt text](images/LandingPage.png)
+![AniSend landing page](images/LandingPage.png)
 ---
 
 ## Prerequisites

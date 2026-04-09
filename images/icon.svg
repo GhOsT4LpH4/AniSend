@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-label="AniSend icon">
+  <rect x="16" y="16" width="224" height="224" rx="24" fill="#0f1115" stroke="#e5e7eb" stroke-width="12"/>
+  <!-- stylized carabao head -->
+  <path d="M90 106c0-18 14-32 32-32h12c18 0 32 14 32 32v56c0 22-18 40-40 40s-40-18-40-40v-56z" fill="#161b22" stroke="#e5e7eb" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M76 112c-14 2-24-6-28-18 18-4 32 4 38 16" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
+  <path d="M180 112c14 2 24-6 28-18-18-4-32 4-38 16" stroke="#e5e7eb" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="116" cy="132" r="6" fill="#e5e7eb"/>
+  <circle cx="140" cy="132" r="6" fill="#e5e7eb"/>
+  <path d="M110 158c10 8 26 8 36 0" stroke="#218a47" stroke-width="10" stroke-linecap="round"/>
+  <!-- escrow check -->
+  <path d="M80 214h96" stroke="#218a47" stroke-width="12" stroke-linecap="round"/>
+</svg>
