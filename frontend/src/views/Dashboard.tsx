@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { StatusBadge } from '../components/StatusBadge';
-import { getUsdcBalance } from '../lib/stellar';
+import { getXlmBalance } from '../lib/stellar';
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { DealStatus } from '../types';
@@ -32,12 +32,12 @@ function SkeletonCard() {
 export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
   const deals = useQuery(api.deals.listMyDeals, { userAddress: wallet });
   const activity = useQuery(api.deals.getMyActivity, { userAddress: wallet, limit: 5 });
-  const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
+  const [xlmBalance, setXlmBalance] = useState<string | null>(null);
 
   useEffect(() => {
-    getUsdcBalance(wallet)
-      .then(setUsdcBalance)
-      .catch(() => setUsdcBalance('—'));
+    getXlmBalance(wallet)
+      .then(setXlmBalance)
+      .catch(() => setXlmBalance('—'));
   }, [wallet]);
 
   const isLoading = deals === undefined || activity === undefined;
@@ -59,10 +59,10 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
         {/* Balance Card */}
         <div className="card-neo-green" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           <span className="text-meta" style={{ color: 'rgba(255,255,255,0.8)' }}>Wallet Balance</span>
-          {usdcBalance === null
+          {xlmBalance === null
             ? <div className="skeleton" style={{ height: '48px', width: '180px', marginTop: '0.25rem' }} />
             : <h2 className="display-lg" style={{ lineHeight: 1, color: 'var(--bg-white)' }}>
-                {usdcBalance} <span className="text-h2" style={{ opacity: 0.7 }}>XLM</span>
+                {xlmBalance} <span className="text-h2" style={{ opacity: 0.7 }}>XLM</span>
               </h2>
           }
           <a

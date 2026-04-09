@@ -2,13 +2,16 @@ import {
   Contract, rpc, TransactionBuilder, BASE_FEE,
   nativeToScVal, scValToNative, xdr, StrKey
 } from '@stellar/stellar-sdk';
-import { STELLAR_RPC_URL, CONTRACT_ID, NETWORK_PASSPHRASE, USDC_CONTRACT_ID } from './config';
+import { STELLAR_RPC_URL, CONTRACT_ID, NETWORK_PASSPHRASE, XLM_TOKEN_CONTRACT_ID } from './config';
 import { signWithFreighter } from './freighter';
 import type { DealData, CreateDealParams } from '../types';
 
 const server = new rpc.Server(STELLAR_RPC_URL);
 
 function getContract() {
+  if (!CONTRACT_ID) {
+    throw new Error('Missing CONTRACT_ID. Set VITE_CONTRACT_ID in your frontend .env.');
+  }
   return new Contract(CONTRACT_ID);
 }
 
@@ -29,6 +32,14 @@ function addressToScVal(addr: string): xdr.ScVal {
   throw new Error(`Unsupported address format: ${addr}`);
 }
 
+function isGAddress(addr: string): boolean {
+  try {
+    return addr.startsWith('G') && !!StrKey.decodeEd25519PublicKey(addr);
+  } catch {
+    return false;
+  }
+}
+
 async function simulateAndReturn(tx: ReturnType<TransactionBuilder['build']>): Promise<unknown> {
   const simResult = await server.simulateTransaction(tx);
   if (rpc.Api.isSimulationError(simResult)) {
@@ -40,15 +51,33 @@ async function simulateAndReturn(tx: ReturnType<TransactionBuilder['build']>): P
   return scValToNative(simResult.result.retval);
 }
 
+async function pollTxUntilDone(txHash: string, timeoutMs = 30_000): Promise<rpc.Api.GetTransactionResponse> {
+  const start = Date.now();
+  // Simple polling loop (Soroban RPC can take a few ledgers)
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const status = await server.getTransaction(txHash);
+    if (status.status !== 'NOT_FOUND') return status;
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('Transaction submitted but not confirmed yet. Please refresh in a few seconds.');
+    }
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+}
+
 /**
  * Create a new livestock escrow deal on-chain.
  * The caller (seller) must authorize the transaction via Freighter.
  */
 export async function createDeal(sellerAddress: string, params: CreateDealParams): Promise<string> {
+  if (!isGAddress(sellerAddress)) throw new Error('Invalid seller address (must be a G... Stellar account).');
+  if (!isGAddress(params.buyerAddress)) throw new Error('Invalid buyer address (must be a G... Stellar account).');
+
   const account = await server.getAccount(sellerAddress);
   const contract = getContract();
 
-  const amountRaw = Math.floor(params.amountUSDC * 10_000_000);
+  // For the XLM demo: treat amount as token base units with 7 decimals.
+  const amountRaw = Math.floor(params.amountXLM * 10_000_000);
   if (!Number.isFinite(amountRaw) || amountRaw <= 0) {
     throw new Error('Invalid amount. Please enter a valid positive number.');
   }
@@ -62,7 +91,7 @@ export async function createDeal(sellerAddress: string, params: CreateDealParams
       contract.call('create_escrow',
         addressToScVal(sellerAddress),
         addressToScVal(params.buyerAddress),
-        addressToScVal(params.tokenAddress || USDC_CONTRACT_ID),
+        addressToScVal(params.tokenAddress || XLM_TOKEN_CONTRACT_ID),
         amountScVal,
         nativeToScVal(params.description, { type: 'symbol' })
       )
@@ -73,20 +102,17 @@ export async function createDeal(sellerAddress: string, params: CreateDealParams
   const preparedTx = await server.prepareTransaction(tx);
   const signedXdr = await signWithFreighter(preparedTx.toXDR(), NETWORK_PASSPHRASE);
 
-  const txHash = await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE));
-
-  await new Promise(resolve => setTimeout(resolve, 5000));
-
-  const status = await server.getTransaction(txHash.hash);
-  if (status.status === 'SUCCESS' && status.returnValue) {
-    return scValToNative(status.returnValue).toString();
+  const send = await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE));
+  const status = await pollTxUntilDone(send.hash, 45_000);
+  if (status.status !== 'SUCCESS' || !status.returnValue) {
+    throw new Error(`Transaction failed: ${status.status}`);
   }
-
-  return 'PENDING_CONFIRMATION';
+  return scValToNative(status.returnValue).toString();
 }
 
 /** Generic contract call for actions that take (caller, deal_id) */
 async function genericContractCall(callerAddress: string, method: string, dealId: number) {
+  if (!isGAddress(callerAddress)) throw new Error('Invalid caller address (must be a G... Stellar account).');
   const account = await server.getAccount(callerAddress);
   const contract = getContract();
 
@@ -100,8 +126,11 @@ async function genericContractCall(callerAddress: string, method: string, dealId
 
   const preparedTx = await server.prepareTransaction(tx);
   const signedXdr = await signWithFreighter(preparedTx.toXDR(), NETWORK_PASSPHRASE);
-  await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE));
-  await new Promise(resolve => setTimeout(resolve, 4000));
+  const send = await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, NETWORK_PASSPHRASE));
+  const status = await pollTxUntilDone(send.hash, 45_000);
+  if (status.status !== 'SUCCESS') {
+    throw new Error(`Transaction failed: ${status.status}`);
+  }
 }
 
 export async function deposit(buyerAddress: string, dealId: number): Promise<void> {
@@ -120,12 +149,12 @@ export async function cancelDeal(callerAddress: string, dealId: number): Promise
   return genericContractCall(callerAddress, 'cancel', dealId);
 }
 
-export async function getUsdcBalance(walletAddress: string): Promise<string> {
+export async function getXlmBalance(walletAddress: string): Promise<string> {
   const account = await server.getAccount(walletAddress);
-  const usdcContract = new Contract(USDC_CONTRACT_ID);
+  const xlmContract = new Contract(XLM_TOKEN_CONTRACT_ID);
 
   const tx = new TransactionBuilder(account, { fee: BASE_FEE, networkPassphrase: NETWORK_PASSPHRASE })
-    .addOperation(usdcContract.call('balance', addressToScVal(walletAddress)))
+    .addOperation(xlmContract.call('balance', addressToScVal(walletAddress)))
     .setTimeout(30)
     .build();
 

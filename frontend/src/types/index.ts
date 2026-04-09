@@ -13,7 +13,7 @@ export interface DealData {
   seller: string;
   buyer: string;
   token: string;
-  amount: string;        // formatted USDC string, e.g. "45000.00"
+  amount: string;        // formatted XLM string, e.g. "45000.00"
   amountRaw: bigint;     // native representation
   description: string;   // e.g. "carabao"
   status: DealStatus;
@@ -23,6 +23,6 @@ export interface DealData {
 export interface CreateDealParams {
   buyerAddress: string;
   tokenAddress: string;
-  amountUSDC: number;
+  amountXLM: number;
   description: string;
 }

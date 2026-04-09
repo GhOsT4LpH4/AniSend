@@ -11,7 +11,8 @@ if (!convexUrl) {
   console.error("CRITICAL ERROR: VITE_CONVEX_URL is missing. Please check your .env file.");
 }
 
-const convex = new ConvexReactClient(convexUrl || "http://localhost:5173"); // Fallback to avoid crash
+// No unsafe fallback: without a real Convex deployment URL the app cannot function correctly.
+const convex = new ConvexReactClient(convexUrl!);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

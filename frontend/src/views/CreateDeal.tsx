@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createDeal } from '../lib/stellar';
-import { USDC_CONTRACT_ID } from '../lib/config';
+import { XLM_TOKEN_CONTRACT_ID } from '../lib/config';
 
 // Convex Hooks
 import { useMutation } from "convex/react";
@@ -42,8 +42,8 @@ export function CreateDeal({ sellerAddress, onSuccess, onCancel }: CreateDealPro
       // 1. Blockchain Transaction (On-chain)
       const dealId = await createDeal(sellerAddress, {
         buyerAddress,
-        tokenAddress: USDC_CONTRACT_ID,
-        amountUSDC: parsedAmount,
+        tokenAddress: XLM_TOKEN_CONTRACT_ID,
+        amountXLM: parsedAmount,
         description,
       });
 
