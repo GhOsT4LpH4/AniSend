@@ -14,6 +14,15 @@ dist-ssr/
 .env.local
 .env.production.local
 
+# AI agent / IDE assistants
+.agents/
+.claude/
+.windsurf/
+skills-lock.json
+
+# Convex AI generated state (keep other convex/_generated/)
+convex/_generated/ai/
+
 # misc
 *.tsbuildinfo
 npm-debug.log*
