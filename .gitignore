@@ -1,7 +1,13 @@
 # Rust/Cargo build artifacts
-/target/
+target/
 **/target/
 Cargo.lock
+
+# JavaScript/Node build artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
 
 # Soroban / WASM build artifacts
 **/*.wasm
@@ -27,18 +33,13 @@ test_snapshots/
 *.d
 **/*.d
 
-# macOS
+# OS Specific
 .AppleDouble
 .LSOverride
-
-# Windows
 Desktop.ini
 $RECYCLE.BIN/
 
-# Ignore environment files
+# Environment files
 .env
+.env.local
 .env.*
-
-# Ignore build scripts and local caches
-**/cargo-cache/
-**/target/

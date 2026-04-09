@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# env files
+.env
+.env.local
+.env.production.local
+
+# misc
+*.tsbuildinfo
+npm-debug.log*
