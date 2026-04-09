@@ -1,18 +1,14 @@
-# AniSend
-
-<p align="center">
-  <img src="images/icon.svg" alt="AniSend icon" width="96" height="96" />
-</p>
+# <img src="images/icon.svg" alt="AniSend icon" width="28" height="28" style="vertical-align: -4px; margin-right: 8px;" /> AniSend
 
 Livestock auction escrow for Filipino smallholder farmers, built on Stellar.
 
 ---
 
-## Problem
+## ⚠️ Problem
 
 A smallholder carabao farmer in Nueva Ecija, Philippines lists a ₱45,000 draft animal on Facebook Marketplace but gets scammed by a buyer who sends a fake GCash screenshot — losing both the carabao and the payment, with zero recourse.
 
-## Solution
+## ✅ Solution
 
 AniSend lets a buyer deposit funds into a Soroban smart contract escrow and releases payment only when **both** buyer and seller confirm delivery — making escrow economically viable for ₱5k–₱60k transactions with sub-cent fees and ~5 second settlement.
 
@@ -24,7 +20,7 @@ AniSend lets a buyer deposit funds into a Soroban smart contract escrow and rele
 
 ---
 
-## Demo Flow (2 minutes)
+## 🎬 Demo Flow (2 minutes)
 
 1. Connect Freighter wallet (testnet)
 2. Seller creates a deal (buyer address, amount, animal description)
@@ -38,7 +34,7 @@ Optional paths:
 
 ---
 
-## Architecture
+## 🧱 Architecture
 
 ```
 Browser (React + Vite)
@@ -61,7 +57,7 @@ No traditional backend server. Deal authority lives on-chain. Convex mirrors key
 
 ---
 
-## Project Structure
+## 🗂️ Project Structure
 
 ```
 anisend/
@@ -89,7 +85,7 @@ anisend/
 
 ---
 
-## Stellar Features Used
+## ⭐ Stellar Features Used
 
 | Feature | Usage |
 |---|---|
@@ -101,7 +97,7 @@ anisend/
 
 ---
 
-## Smart Contract
+## 📜 Smart Contract
 
 Deployed on Stellar testnet:
 
@@ -111,7 +107,7 @@ Deployed on Stellar testnet:
 
 Set your deployed Contract ID in the frontend env (`VITE_CONTRACT_ID`) to point the UI at the correct contract instance.
 
-### Contract Functions
+### 🧩 Contract Functions
 
 | Function | Caller | Description |
 |---|---|---|
@@ -131,7 +127,7 @@ Set your deployed Contract ID in the frontend env (`VITE_CONTRACT_ID`) to point 
   - **After deposit**: only the buyer may cancel, and only **after `expires_ledger`** (timelock) to avoid griefing and prevent indefinite lockups.
 - **Token-agnostic**: uses Soroban token interface; works with XLM via SAC on testnet or any token contract (e.g., USDC).
 
-### Escrow Status Lifecycle
+### 🔄 Escrow Status Lifecycle
 
 ```
 AwaitingDeposit --> Funded --> BuyerConfirmed ----\
@@ -141,7 +137,7 @@ AwaitingDeposit --> Funded --> BuyerConfirmed ----\
 ![AniSend landing page](images/LandingPage.png)
 ---
 
-## Prerequisites
+## 🧰 Prerequisites
 
 **For the smart contract:**
 - Rust (latest stable)
@@ -156,9 +152,9 @@ AwaitingDeposit --> Funded --> BuyerConfirmed ----\
 
 ---
 
-## Setup
+## 🛠️ Setup
 
-### Smart Contract
+### 📦 Smart Contract
 
 ```bash
 # Build
@@ -182,7 +178,7 @@ soroban contract deploy \
   --network testnet
 ```
 
-### Frontend
+### 🖥️ Frontend
 
 ```bash
 cd frontend
@@ -211,7 +207,7 @@ VITE_XLM_TOKEN_CONTRACT_ID=<token contract id>
 VITE_USDC_CONTRACT_ID=<token contract id>
 ```
 
-### Convex (real-time index + logs)
+### 🧾 Convex (real-time index + logs)
 
 ```bash
 cd frontend
@@ -220,7 +216,7 @@ npx convex dev
 
 ---
 
-## Sample CLI Invocations
+## ⌨️ Sample CLI Invocations
 
 Notes:
 - `amount` is in the token’s smallest unit (the demo UI treats amounts as 7-decimal units like XLM).
@@ -276,18 +272,18 @@ soroban contract invoke \
 
 ---
 
-## Target Users
+## 👥 Target Users
 
 Filipino smallholder farmers and rural livestock traders selling animals via Facebook groups/Marketplace and local auctions who have no buyer protection and are vulnerable to payment fraud. AniSend provides escrow with near-instant settlement and fees low enough to work at ₱5,000–₱60,000 ticket sizes.
 
 ---
 
-## Why Stellar
+## 🚀 Why Stellar
 
 Stellar’s fast finality and sub-cent fees make escrow viable for everyday transactions. Soroban contracts let AniSend enforce mutual confirmation and timelocks on-chain, while keeping the UX lightweight via wallet signing (Freighter) and low-friction RPC reads/writes.
 
 ---
 
-## License
+## 📄 License
 
 MIT — see [LICENSE](LICENSE) for details.
