@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { StatusBadge } from '../components/StatusBadge';
 import type { DealStatus } from '../types';
+import { getDeal } from '../lib/stellar';
 
 interface HistoryProps {
   wallet: string;
@@ -9,10 +11,51 @@ interface HistoryProps {
 }
 
 export function History({ wallet, onViewDeal }: HistoryProps) {
-  const deals = useQuery(api.deals.listMyDeals, { userAddress: wallet });
+  const deals = useQuery(api.deals.listMyDeals, { userAddress: wallet, contractId: import.meta.env.VITE_CONTRACT_ID || '' });
   const activity = useQuery(api.deals.getMyActivity, { userAddress: wallet, limit: 50 });
+  const [chainStatusByDealId, setChainStatusByDealId] = useState<Record<string, DealStatus>>({});
+  const [chainAmountByDealId, setChainAmountByDealId] = useState<Record<string, string>>({});
 
   const isLoading = deals === undefined || activity === undefined;
+
+  useEffect(() => {
+    if (!deals || deals.length === 0) return;
+    let cancelled = false;
+
+    (async () => {
+      const results = await Promise.allSettled(
+        deals.map(async (d) => {
+          const dealIdNum = Number(d.dealId);
+          const chainDeal = await getDeal(dealIdNum, wallet);
+          return {
+            dealId: d.dealId.toString(),
+            status: chainDeal.status,
+            amount: chainDeal.amount,
+          };
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextStatus: Record<string, DealStatus> = {};
+      const nextAmount: Record<string, string> = {};
+      for (const r of results) {
+        if (r.status !== 'fulfilled') {
+          continue;
+        }
+        nextStatus[r.value.dealId] = r.value.status;
+        nextAmount[r.value.dealId] = r.value.amount;
+      }
+      setChainStatusByDealId(nextStatus);
+      setChainAmountByDealId(nextAmount);
+    })().catch(() => {
+      // ignore
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deals, wallet]);
 
   return (
     <div className="animate-slide-up stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
@@ -39,7 +82,7 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <StatusBadge status={deal.status as DealStatus} />
+                  <StatusBadge status={(chainStatusByDealId[deal.dealId.toString()] || 'AwaitingDeposit') as DealStatus} />
                   <h3 className="text-h2" style={{ marginTop: '0.5rem', textTransform: 'capitalize' }}>
                     {deal.description || `Deal #AS-${deal.dealId}`}
                   </h3>
@@ -48,7 +91,9 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
                   </p>
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p className="text-h2" style={{ fontWeight: 700 }}>{deal.amountUsd.toFixed(2)} XLM</p>
+                  <p className="text-h2" style={{ fontWeight: 700 }}>
+                    {(chainAmountByDealId[deal.dealId.toString()] || deal.amountUsd.toFixed(2))} XLM
+                  </p>
                 </div>
               </div>
             ))

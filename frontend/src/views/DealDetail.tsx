@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { StatusBadge } from '../components/StatusBadge';
-import { getDeal, deposit, confirmBuyer, confirmSeller, cancelDeal } from '../lib/stellar';
+import { formatApproxTimeFromLedgers, getDeal, getLatestLedgerSequence, deposit, confirmBuyer, confirmSeller, cancelDeal } from '../lib/stellar';
 import type { DealData, DealStatus } from '../types';
 
 import { useMutation } from "convex/react";
@@ -17,17 +17,32 @@ export function DealDetail({ dealId, walletAddress, onBack }: DealDetailProps) {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
+  const [latestLedger, setLatestLedger] = useState<number | null>(null);
 
-  const updateDealStatus = useMutation(api.deals.updateDealStatus);
+  const logDealEvent = useMutation(api.deals.logDealEvent);
 
   useEffect(() => {
     if (!dealId) return;
+    setError('');
+    setDeal(null);
     setLoading(true);
     getDeal(Number(dealId), walletAddress)
-      .then(setDeal)
-      .catch(() => setError('Failed to load deal details from chain.'))
+      .then((d) => {
+        setDeal(d);
+        setError('');
+      })
+      .catch(() => {
+        setDeal(null);
+        setError('Failed to load deal details from chain.');
+      })
       .finally(() => setLoading(false));
   }, [dealId, walletAddress]);
+
+  useEffect(() => {
+    getLatestLedgerSequence()
+      .then(setLatestLedger)
+      .catch(() => setLatestLedger(null));
+  }, [dealId]);
 
   const handleAction = async (
     action: () => Promise<void>,
@@ -38,11 +53,11 @@ export function DealDetail({ dealId, walletAddress, onBack }: DealDetailProps) {
       setActionLoading(true);
       setError('');
       await action();
-      await updateDealStatus({
+      await logDealEvent({
         dealId: Number(dealId),
-        status: newStatus,
         userAddress: walletAddress,
         eventDetails: details,
+        eventType: `DEAL_${newStatus.toUpperCase()}`,
       });
       // Reload deal
       const updated = await getDeal(Number(dealId), walletAddress);
@@ -53,6 +68,32 @@ export function DealDetail({ dealId, walletAddress, onBack }: DealDetailProps) {
       setActionLoading(false);
     }
   };
+
+  // IMPORTANT: hooks must not be called conditionally; compute derived values
+  // before any early returns.
+  const isBuyer = deal?.buyer === walletAddress;
+  const isSeller = deal?.seller === walletAddress;
+  const role = isSeller ? 'Seller' : isBuyer ? 'Buyer' : 'Viewer';
+
+  const refundInfo = useMemo(() => {
+    if (!deal?.expiresLedger || !latestLedger) return null;
+    const remaining = deal.expiresLedger - latestLedger;
+    return {
+      expiresLedger: deal.expiresLedger,
+      remainingLedgers: remaining,
+      remainingLabel: formatApproxTimeFromLedgers(remaining),
+      isExpired: remaining <= 0,
+    };
+  }, [deal?.expiresLedger, latestLedger]);
+
+  const cancelDisabledReason = useMemo(() => {
+    if (!deal) return null;
+    if (!isBuyer) return null; // seller cancellation behavior is enforced by contract; UI can still allow "try"
+    if (deal.status === 'AwaitingDeposit') return null;
+    if (!refundInfo) return 'Refund deadline info unavailable (try refresh).';
+    if (!refundInfo.isExpired) return `Refund available in ~${refundInfo.remainingLabel}.`;
+    return null;
+  }, [deal, isBuyer, refundInfo]);
 
   if (loading) {
     return (
@@ -72,10 +113,6 @@ export function DealDetail({ dealId, walletAddress, onBack }: DealDetailProps) {
       </div>
     );
   }
-
-  const isBuyer = deal.buyer === walletAddress;
-  const isSeller = deal.seller === walletAddress;
-  const role = isSeller ? 'Seller' : isBuyer ? 'Buyer' : 'Viewer';
 
   return (
     <div className="animate-slide-up stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
@@ -113,6 +150,27 @@ export function DealDetail({ dealId, walletAddress, onBack }: DealDetailProps) {
           </h2>
         </div>
       </section>
+
+      {/* Deadline / Timelock */}
+      {refundInfo && (
+        <section className="card-neo-flat" style={{ padding: '2rem' }}>
+          <h3 className="text-h2" style={{ marginBottom: '0.75rem' }}>Refund Timelock</h3>
+          <p className="text-body" style={{ opacity: 0.8 }}>
+            After deposit, only the buyer can cancel and reclaim funds once the deadline passes.
+          </p>
+          <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <span className="badge" style={{ background: 'var(--surface-container)', borderColor: 'var(--text-main)' }}>
+              Latest ledger: {latestLedger ?? '—'}
+            </span>
+            <span className="badge" style={{ background: refundInfo.isExpired ? 'var(--accent-green)' : 'var(--accent-yellow)', color: refundInfo.isExpired ? 'white' : 'var(--text-main)' }}>
+              Refund {refundInfo.isExpired ? 'available now' : `in ~${refundInfo.remainingLabel}`}
+            </span>
+            <span className="badge" style={{ background: 'var(--surface-container)', borderColor: 'var(--text-main)' }}>
+              Deadline ledger: {refundInfo.expiresLedger}
+            </span>
+          </div>
+        </section>
+      )}
 
       {/* Action Panel */}
       <section className="card-neo" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -173,10 +231,11 @@ export function DealDetail({ dealId, walletAddress, onBack }: DealDetailProps) {
               'Cancelled',
               `${role} cancelled the deal. Funds refunded to buyer.`
             )}
-            disabled={actionLoading}
+            disabled={actionLoading || !!cancelDisabledReason}
             className="btn-neo btn-danger btn-full"
+            title={cancelDisabledReason || undefined}
           >
-            {actionLoading ? 'Cancelling...' : 'Cancel Deal'}
+            {actionLoading ? 'Cancelling...' : cancelDisabledReason ? `Cancel locked (${cancelDisabledReason})` : 'Cancel Deal'}
           </button>
         )}
 

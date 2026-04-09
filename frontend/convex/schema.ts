@@ -13,14 +13,21 @@ export default defineSchema({
   // 2. Livestock Deals
   deals: defineTable({
     dealId: v.float64(),
+    // Backward-compat: older rows may not have contractId yet.
+    contractId: v.optional(v.string()),
     sellerAddress: v.string(),
     buyerAddress: v.string(),
     amountUsd: v.float64(),
     description: v.string(),            // e.g. "carabao", "goat"
-    status: v.string(),                 // matches DealStatus
+    // Backward-compat: older rows may include status; UI reads status from chain.
+    status: v.optional(v.string()),
     invoiceRef: v.optional(v.string()),
   })
   .index("by_dealId", ["dealId"])
+  // Indexes for contract-scoped views (rows missing contractId won't match these).
+  .index("by_contract", ["contractId"])
+  .index("by_contract_seller", ["contractId", "sellerAddress"])
+  .index("by_contract_buyer", ["contractId", "buyerAddress"])
   .index("by_seller", ["sellerAddress"])
   .index("by_buyer", ["buyerAddress"]),
 

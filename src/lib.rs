@@ -19,8 +19,23 @@
 
 use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype,
-    token, Address, Env, Symbol, symbol_short,
+    panic_with_error, token, Address, Env, Symbol, symbol_short,
 };
+
+/// Default timelock window in ledgers (Testnet ~5s/ledger => 17_280 ≈ 24 hours).
+#[cfg(not(test))]
+const DEFAULT_EXPIRY_LEDGERS: u32 = 17_280;
+/// Shorter window in tests to avoid storage archival when fast-forwarding ledgers.
+#[cfg(test)]
+const DEFAULT_EXPIRY_LEDGERS: u32 = 50;
+// Keep deal records alive well past the default expiry.
+const DEAL_TTL_EXTEND_TO: u32 = DEFAULT_EXPIRY_LEDGERS + 50_000;
+// Keep the contract instance itself alive during deal lifetime.
+const INSTANCE_TTL_EXTEND_TO: u32 = DEFAULT_EXPIRY_LEDGERS + 100_000;
+
+fn bump_instance_ttl(env: &Env) {
+    env.storage().instance().extend_ttl(0, INSTANCE_TTL_EXTEND_TO);
+}
 
 // ---------------------------------------------------------------------------
 // Storage keys & types
@@ -57,6 +72,10 @@ pub struct EscrowDeal {
     pub amount: i128,          // price in token smallest unit
     pub description: Symbol,   // short label, e.g. "carabao"
     pub status: EscrowStatus,
+    /// Ledger when the deal was created.
+    pub created_ledger: u32,
+    /// Ledger after which the buyer can unilaterally cancel to avoid stuck funds.
+    pub expires_ledger: u32,
 }
 
 // ---------------------------------------------------------------------------
@@ -73,8 +92,14 @@ pub enum EscrowError {
     Unauthorized = 2,
     /// The deal is not in the correct state for this action.
     InvalidState = 3,
-    /// The deposit amount does not match the listing price.
-    AmountMismatch = 4,
+    /// The caller provided an invalid amount (e.g. <= 0).
+    InvalidAmount = 4,
+    /// Seller and buyer cannot be the same address.
+    SameParty = 5,
+    /// The deal's timelock deadline has not been reached.
+    DeadlineNotReached = 6,
+    /// The caller is a valid party but is not allowed to perform this action.
+    CancelNotAllowed = 7,
 }
 
 // ---------------------------------------------------------------------------
@@ -107,13 +132,25 @@ impl AniSendContract {
         amount: i128,
         description: Symbol,
     ) -> u64 {
+        bump_instance_ttl(&env);
         // Seller must authorize the listing creation
         seller.require_auth();
+
+        // Basic invariants (small checks, big confidence)
+        if amount <= 0 {
+            panic_with_error!(&env, EscrowError::InvalidAmount);
+        }
+        if seller == buyer {
+            panic_with_error!(&env, EscrowError::SameParty);
+        }
+
+        let created_ledger = env.ledger().sequence();
+        let expires_ledger = created_ledger.saturating_add(DEFAULT_EXPIRY_LEDGERS);
 
         // Generate an auto-incrementing ID
         let id: u64 = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::NextId)
             .unwrap_or(0);
 
@@ -125,11 +162,15 @@ impl AniSendContract {
             amount,
             description,
             status: EscrowStatus::AwaitingDeposit,
+            created_ledger,
+            expires_ledger,
         };
 
-        // Persist the deal and bump the counter
-        env.storage().instance().set(&DataKey::Escrow(id), &deal);
-        env.storage().instance().set(&DataKey::NextId, &(id + 1));
+        // Persist the deal and bump the counter (persistent storage to avoid archival)
+        env.storage().persistent().set(&DataKey::Escrow(id), &deal);
+        env.storage().persistent().set(&DataKey::NextId, &(id + 1));
+        env.storage().persistent().extend_ttl(&DataKey::Escrow(id), 0, DEAL_TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(&DataKey::NextId, 0, DEAL_TTL_EXTEND_TO);
 
         // Emit an event for indexers / front-end
         env.events()
@@ -145,11 +186,12 @@ impl AniSendContract {
     ///
     /// Tokens are transferred from the buyer to this contract's address.
     pub fn deposit(env: Env, buyer: Address, deal_id: u64) -> Result<(), EscrowError> {
+        bump_instance_ttl(&env);
         buyer.require_auth();
 
         let mut deal: EscrowDeal = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Escrow(deal_id))
             .ok_or(EscrowError::NotFound)?;
 
@@ -171,7 +213,8 @@ impl AniSendContract {
         );
 
         deal.status = EscrowStatus::Funded;
-        env.storage().instance().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().extend_ttl(&DataKey::Escrow(deal_id), 0, DEAL_TTL_EXTEND_TO);
 
         env.events()
             .publish((symbol_short!("deposit"),), deal_id);
@@ -186,11 +229,12 @@ impl AniSendContract {
     ///
     /// If the seller has already confirmed, this triggers fund release.
     pub fn confirm_buyer(env: Env, buyer: Address, deal_id: u64) -> Result<(), EscrowError> {
+        bump_instance_ttl(&env);
         buyer.require_auth();
 
         let mut deal: EscrowDeal = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Escrow(deal_id))
             .ok_or(EscrowError::NotFound)?;
 
@@ -212,7 +256,8 @@ impl AniSendContract {
             deal.status = EscrowStatus::BuyerConfirmed;
         }
 
-        env.storage().instance().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().extend_ttl(&DataKey::Escrow(deal_id), 0, DEAL_TTL_EXTEND_TO);
 
         env.events()
             .publish((symbol_short!("c_buyer"),), deal_id);
@@ -227,11 +272,12 @@ impl AniSendContract {
     ///
     /// If the buyer has already confirmed, this triggers fund release.
     pub fn confirm_seller(env: Env, seller: Address, deal_id: u64) -> Result<(), EscrowError> {
+        bump_instance_ttl(&env);
         seller.require_auth();
 
         let mut deal: EscrowDeal = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Escrow(deal_id))
             .ok_or(EscrowError::NotFound)?;
 
@@ -253,7 +299,8 @@ impl AniSendContract {
             deal.status = EscrowStatus::SellerConfirmed;
         }
 
-        env.storage().instance().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().extend_ttl(&DataKey::Escrow(deal_id), 0, DEAL_TTL_EXTEND_TO);
 
         env.events()
             .publish((symbol_short!("c_seller"),), deal_id);
@@ -267,11 +314,12 @@ impl AniSendContract {
     /// Either the buyer or the seller can cancel the deal before both have
     /// confirmed. If tokens have been deposited, they are refunded to the buyer.
     pub fn cancel(env: Env, caller: Address, deal_id: u64) -> Result<(), EscrowError> {
+        bump_instance_ttl(&env);
         caller.require_auth();
 
         let mut deal: EscrowDeal = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Escrow(deal_id))
             .ok_or(EscrowError::NotFound)?;
 
@@ -286,8 +334,20 @@ impl AniSendContract {
             return Err(EscrowError::InvalidState);
         }
 
-        // If funds were deposited, refund the buyer
+        // Cancellation rules:
+        // - Before deposit: either party can cancel (no funds are locked).
+        // - After deposit: only the buyer can cancel, and only after the timelock expires,
+        //   to prevent funds being stuck indefinitely.
         if deal.status != EscrowStatus::AwaitingDeposit {
+            if caller == deal.seller {
+                return Err(EscrowError::CancelNotAllowed);
+            }
+            let now = env.ledger().sequence();
+            if now < deal.expires_ledger {
+                return Err(EscrowError::DeadlineNotReached);
+            }
+
+            // Funds were deposited: refund the buyer.
             let token_client = token::Client::new(&env, &deal.token);
             token_client.transfer(
                 &env.current_contract_address(),
@@ -297,7 +357,8 @@ impl AniSendContract {
         }
 
         deal.status = EscrowStatus::Cancelled;
-        env.storage().instance().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().set(&DataKey::Escrow(deal_id), &deal);
+        env.storage().persistent().extend_ttl(&DataKey::Escrow(deal_id), 0, DEAL_TTL_EXTEND_TO);
 
         env.events()
             .publish((symbol_short!("cancel"),), deal_id);
@@ -310,8 +371,9 @@ impl AniSendContract {
     // -----------------------------------------------------------------------
     /// Returns the full EscrowDeal struct for a given deal ID.
     pub fn get_escrow(env: Env, deal_id: u64) -> Result<EscrowDeal, EscrowError> {
+        bump_instance_ttl(&env);
         env.storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Escrow(deal_id))
             .ok_or(EscrowError::NotFound)
     }

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { StatusBadge } from '../components/StatusBadge';
-import { getXlmBalance } from '../lib/stellar';
+import { getDeal, getXlmBalance } from '../lib/stellar';
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { DealStatus } from '../types';
@@ -30,9 +30,11 @@ function SkeletonCard() {
 }
 
 export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
-  const deals = useQuery(api.deals.listMyDeals, { userAddress: wallet });
+  const deals = useQuery(api.deals.listMyDeals, { userAddress: wallet, contractId: import.meta.env.VITE_CONTRACT_ID || '' });
   const activity = useQuery(api.deals.getMyActivity, { userAddress: wallet, limit: 5 });
   const [xlmBalance, setXlmBalance] = useState<string | null>(null);
+  const [chainStatusByDealId, setChainStatusByDealId] = useState<Record<string, DealStatus>>({});
+  const [chainAmountByDealId, setChainAmountByDealId] = useState<Record<string, string>>({});
 
   useEffect(() => {
     getXlmBalance(wallet)
@@ -42,8 +44,64 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
 
   const isLoading = deals === undefined || activity === undefined;
 
-  const activeDeals = deals?.filter(d => d.status === 'AwaitingDeposit' || d.status === 'Funded' || d.status === 'BuyerConfirmed' || d.status === 'SellerConfirmed') ?? [];
-  const totalLocked = activeDeals.filter(d => d.status !== 'AwaitingDeposit').reduce((sum, d) => sum + d.amountUsd, 0);
+  // Load authoritative status (and formatted amount) from chain for visible deals.
+  useEffect(() => {
+    if (!deals || deals.length === 0) return;
+    let cancelled = false;
+
+    (async () => {
+      const results = await Promise.allSettled(
+        deals.map(async (d) => {
+          const dealIdNum = Number(d.dealId);
+          const chainDeal = await getDeal(dealIdNum, wallet);
+          return {
+            dealId: d.dealId.toString(),
+            status: chainDeal.status,
+            amount: chainDeal.amount,
+          };
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextStatus: Record<string, DealStatus> = {};
+      const nextAmount: Record<string, string> = {};
+      for (const r of results) {
+        if (r.status !== 'fulfilled') {
+          continue;
+        }
+        nextStatus[r.value.dealId] = r.value.status;
+        nextAmount[r.value.dealId] = r.value.amount;
+      }
+      setChainStatusByDealId(nextStatus);
+      setChainAmountByDealId(nextAmount);
+    })().catch(() => {
+      // ignore: UI will fall back to skeleton/unknown if chain read fails
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deals, wallet]);
+
+  const activeDeals = useMemo(() => {
+    if (!deals) return [];
+    return deals.filter((d) => {
+      const s = chainStatusByDealId[d.dealId.toString()];
+      return s === 'AwaitingDeposit' || s === 'Funded' || s === 'BuyerConfirmed' || s === 'SellerConfirmed';
+    });
+  }, [deals, chainStatusByDealId]);
+
+  const totalLocked = useMemo(() => {
+    if (!activeDeals.length) return 0;
+    return activeDeals.reduce((sum, d) => {
+      const status = chainStatusByDealId[d.dealId.toString()];
+      if (!status || status === 'AwaitingDeposit') return sum;
+      const amountStr = chainAmountByDealId[d.dealId.toString()];
+      const amt = amountStr ? Number(amountStr) : Number(d.amountUsd);
+      return sum + (Number.isFinite(amt) ? amt : 0);
+    }, 0);
+  }, [activeDeals, chainStatusByDealId, chainAmountByDealId]);
 
   return (
     <div className="animate-slide-up stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
@@ -137,6 +195,11 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
             </>
           ) : deals && deals.length > 0 ? (
             deals.map((deal) => (
+              (() => {
+                const chainStatus = chainStatusByDealId[deal.dealId.toString()];
+                const displayStatus = (chainStatus || 'AwaitingDeposit') as DealStatus;
+                const displayAmount = chainAmountByDealId[deal.dealId.toString()] || deal.amountUsd.toFixed(2);
+                return (
               <div
                 key={deal._id}
                 className="card-neo"
@@ -144,7 +207,7 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
               >
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                  <StatusBadge status={deal.status as DealStatus} />
+                  <StatusBadge status={displayStatus} />
                   <h3 className="text-h2" style={{ marginTop: '0.5rem' }}>
                     {deal.description || `Deal #AS-${deal.dealId}`}
                   </h3>
@@ -154,9 +217,11 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <span className="text-meta">Amount</span>
-                  <p className="text-h2" style={{ fontWeight: 700 }}>{deal.amountUsd.toFixed(2)} XLM</p>
+                  <p className="text-h2" style={{ fontWeight: 700 }}>{displayAmount} XLM</p>
                 </div>
               </div>
+                );
+              })()
             ))
           ) : (
             <div className="card-neo-flat" style={{ textAlign: 'center', padding: '3rem', borderStyle: 'dashed' }}>

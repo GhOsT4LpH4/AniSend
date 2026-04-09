@@ -10,6 +10,7 @@
 use super::*;
 use soroban_sdk::{
     testutils::Address as _,
+    testutils::Ledger,
     token::{StellarAssetClient, TokenClient},
     Address, Env, Symbol,
 };
@@ -183,8 +184,11 @@ fn test_cancel_refunds_buyer() {
     t.contract_client.deposit(&t.buyer, &deal_id);
     assert_eq!(t.token_client.balance(&t.buyer), 100_000 - amount);
 
-    // Seller cancels the deal
-    t.contract_client.cancel(&t.seller, &deal_id);
+    // Advance ledger past expiry, then buyer cancels to reclaim funds (prevents stuck escrow).
+    t.env.ledger().with_mut(|li| {
+        li.sequence_number = li.sequence_number.saturating_add(100);
+    });
+    t.contract_client.cancel(&t.buyer, &deal_id);
 
     // Buyer should get full refund
     assert_eq!(t.token_client.balance(&t.buyer), 100_000);
@@ -219,4 +223,86 @@ fn test_cannot_cancel_completed() {
 
     // Deal is now Completed — cancelling should fail with InvalidState
     t.contract_client.cancel(&t.buyer, &deal_id);
+}
+
+// ---------------------------------------------------------------------------
+// Test 8 — Timelock: seller cannot cancel after buyer has deposited
+// ---------------------------------------------------------------------------
+#[test]
+#[should_panic(expected = "Error(Contract, #7)")]
+fn test_seller_cannot_cancel_after_deposit() {
+    let t = setup();
+    let amount: i128 = 10_000;
+    let desc = Symbol::new(&t.env, "goat");
+
+    let deal_id = t.contract_client.create_escrow(
+        &t.seller,
+        &t.buyer,
+        &t.token_address,
+        &amount,
+        &desc,
+    );
+
+    t.contract_client.deposit(&t.buyer, &deal_id);
+    t.contract_client.cancel(&t.seller, &deal_id);
+}
+
+// ---------------------------------------------------------------------------
+// Test 9 — Timelock: buyer cannot cancel before expiry after deposit
+// ---------------------------------------------------------------------------
+#[test]
+#[should_panic(expected = "Error(Contract, #6)")]
+fn test_buyer_cannot_cancel_before_expiry_after_deposit() {
+    let t = setup();
+    let amount: i128 = 10_000;
+    let desc = Symbol::new(&t.env, "duck");
+
+    let deal_id = t.contract_client.create_escrow(
+        &t.seller,
+        &t.buyer,
+        &t.token_address,
+        &amount,
+        &desc,
+    );
+
+    t.contract_client.deposit(&t.buyer, &deal_id);
+    t.contract_client.cancel(&t.buyer, &deal_id);
+}
+
+// ---------------------------------------------------------------------------
+// Test 6 — Hardening: cannot create escrow with non-positive amount
+// ---------------------------------------------------------------------------
+#[test]
+#[should_panic(expected = "Error(Contract, #4)")]
+fn test_create_escrow_rejects_zero_amount() {
+    let t = setup();
+    let amount: i128 = 0;
+    let desc = Symbol::new(&t.env, "carabao");
+
+    t.contract_client.create_escrow(
+        &t.seller,
+        &t.buyer,
+        &t.token_address,
+        &amount,
+        &desc,
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Test 7 — Hardening: cannot create escrow where seller == buyer
+// ---------------------------------------------------------------------------
+#[test]
+#[should_panic(expected = "Error(Contract, #5)")]
+fn test_create_escrow_rejects_same_party() {
+    let t = setup();
+    let amount: i128 = 1;
+    let desc = Symbol::new(&t.env, "carabao");
+
+    t.contract_client.create_escrow(
+        &t.seller,
+        &t.seller,
+        &t.token_address,
+        &amount,
+        &desc,
+    );
 }

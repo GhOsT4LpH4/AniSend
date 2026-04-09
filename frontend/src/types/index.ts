@@ -17,6 +17,8 @@ export interface DealData {
   amountRaw: bigint;     // native representation
   description: string;   // e.g. "carabao"
   status: DealStatus;
+  createdLedger?: number;
+  expiresLedger?: number;
 }
 
 /** Parameters for creating a new escrow deal */

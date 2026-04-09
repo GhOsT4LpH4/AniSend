@@ -50,11 +50,11 @@ export function CreateDeal({ sellerAddress, onSuccess, onCancel }: CreateDealPro
       // 2. Database Sync (Convex)
       await syncDealInDB({
         dealId: Number(dealId),
+        contractId: import.meta.env.VITE_CONTRACT_ID || '',
         sellerAddress: sellerAddress,
         buyerAddress: buyerAddress,
         amountUsd: parsedAmount,
         description: description,
-        status: "AwaitingDeposit",
         invoiceRef: `${description} — ${buyerAddress.slice(0, 8)}...`,
         eventDetails: `Listed ${description} for ${parsedAmount} XLM.`,
       });

@@ -7,6 +7,7 @@ import { signWithFreighter } from './freighter';
 import type { DealData, CreateDealParams } from '../types';
 
 const server = new rpc.Server(STELLAR_RPC_URL);
+const LEDGER_SECONDS_ESTIMATE = 5;
 
 function getContract() {
   if (!CONTRACT_ID) {
@@ -49,6 +50,11 @@ async function simulateAndReturn(tx: ReturnType<TransactionBuilder['build']>): P
     throw new Error('No valid return value from simulation.');
   }
   return scValToNative(simResult.result.retval);
+}
+
+export async function getLatestLedgerSequence(): Promise<number> {
+  const latest = await server.getLatestLedger();
+  return Number(latest.sequence);
 }
 
 async function pollTxUntilDone(txHash: string, timeoutMs = 30_000): Promise<rpc.Api.GetTransactionResponse> {
@@ -197,5 +203,18 @@ export async function getDeal(dealId: number, callerAddress: string): Promise<De
     amountRaw: BigInt(amountNum || 0),
     description: String(dataObj.description || ''),
     status: parseStatus(dataObj.status) as DealData['status'],
+    createdLedger: typeof dataObj.created_ledger === 'number' ? dataObj.created_ledger : Number(String(dataObj.created_ledger ?? '')),
+    expiresLedger: typeof dataObj.expires_ledger === 'number' ? dataObj.expires_ledger : Number(String(dataObj.expires_ledger ?? '')),
   };
+}
+
+export function formatApproxTimeFromLedgers(ledgersRemaining: number): string {
+  if (!Number.isFinite(ledgersRemaining) || ledgersRemaining <= 0) return 'now';
+  const seconds = Math.max(0, Math.floor(ledgersRemaining * LEDGER_SECONDS_ESTIMATE));
+  const mins = Math.floor(seconds / 60);
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 48) return `${hours} hr`;
+  const days = Math.floor(hours / 24);
+  return `${days} day`;
 }
