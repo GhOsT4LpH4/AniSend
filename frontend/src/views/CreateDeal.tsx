@@ -78,7 +78,7 @@ export function CreateDeal({ sellerAddress, onSuccess, onCancel }: CreateDealPro
         <h1 className="display-lg">List Animal for Sale</h1>
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '2rem' }}>
 
         <form onSubmit={handleSubmit} className="card-neo" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           <h2 className="text-h1">Deal Entry</h2>

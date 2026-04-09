@@ -182,7 +182,7 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
 
       {/* Active Deals */}
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
           <h2 className="text-h1">Active Deals</h2>
           {isLoading && <span className="text-meta animate-pulse">Syncing...</span>}
         </div>
@@ -204,9 +204,9 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
                 key={deal._id}
                 className="card-neo"
                 onClick={() => onNavigate('DETAIL', deal.dealId.toString())}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', cursor: 'pointer' }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1 1 220px', minWidth: 0 }}>
                   <StatusBadge status={displayStatus} />
                   <h3 className="text-h2" style={{ marginTop: '0.5rem' }}>
                     {deal.description || `Deal #AS-${deal.dealId}`}
@@ -215,7 +215,7 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
                     {deal.sellerAddress === wallet ? 'Buyer' : 'Seller'}: {(deal.sellerAddress === wallet ? deal.buyerAddress : deal.sellerAddress).slice(0, 8)}…{(deal.sellerAddress === wallet ? deal.buyerAddress : deal.sellerAddress).slice(-4)}
                   </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
                   <span className="text-meta">Amount</span>
                   <p className="text-h2" style={{ fontWeight: 700 }}>{displayAmount} XLM</p>
                 </div>
@@ -237,7 +237,7 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
 
       {/* Recent Activity */}
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
           <h2 className="text-h1">Recent Activity</h2>
           <button onClick={() => onNavigate('HISTORY')} className="text-meta" style={{ color: 'var(--accent-blue)', cursor: 'pointer' }}>
             View all →
@@ -261,9 +261,11 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
                 borderBottom: index !== activity.length - 1 ? '2px solid var(--text-main)' : 'none',
               }}>
-                <div>
+                <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                   <h4 className="text-h3">{item.details}</h4>
                   <p className="text-meta" style={{ marginTop: '0.25rem' }}>
                     {new Date(item.createdAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}
@@ -278,7 +280,9 @@ export function Dashboard({ wallet, userName, onNavigate }: DashboardProps) {
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
                     fontWeight: 700,
-                    whiteSpace: 'nowrap',
+                    whiteSpace: 'normal',
+                    textAlign: 'center',
+                    flex: '0 0 auto',
                   }}
                 >
                   {item.eventType.replace(/_/g, ' ')}

@@ -67,7 +67,7 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
 
       {/* All Deals */}
       <section>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
           <h2 className="text-h1">All Deals</h2>
           {isLoading && <span className="text-meta animate-pulse">Loading...</span>}
         </div>
@@ -79,9 +79,9 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
                 key={deal._id}
                 className="card-neo"
                 onClick={() => onViewDeal(deal.dealId.toString())}
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', cursor: 'pointer' }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: '1 1 220px', minWidth: 0 }}>
                   <StatusBadge status={(chainStatusByDealId[deal.dealId.toString()] || 'AwaitingDeposit') as DealStatus} />
                   <h3 className="text-h2" style={{ marginTop: '0.5rem', textTransform: 'capitalize' }}>
                     {deal.description || `Deal #AS-${deal.dealId}`}
@@ -90,7 +90,7 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
                     {deal.sellerAddress === wallet ? 'Buyer' : 'Seller'}: {(deal.sellerAddress === wallet ? deal.buyerAddress : deal.sellerAddress).slice(0, 8)}...{(deal.sellerAddress === wallet ? deal.buyerAddress : deal.sellerAddress).slice(-4)}
                   </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flex: '0 0 auto' }}>
                   <p className="text-h2" style={{ fontWeight: 700 }}>
                     {(chainAmountByDealId[deal.dealId.toString()] || deal.amountUsd.toFixed(2))} XLM
                   </p>
@@ -119,10 +119,12 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem',
                   borderBottom: index !== activity.length - 1 ? '2px solid var(--text-main)' : 'none',
                 }}
               >
-                <div>
+                <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                   <p className="text-h3">{item.details}</p>
                   <p className="text-meta" style={{ marginTop: '0.25rem' }}>
                     {new Date(item.createdAt).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}
@@ -137,7 +139,9 @@ export function History({ wallet, onViewDeal }: HistoryProps) {
                     textTransform: 'uppercase',
                     letterSpacing: '0.08em',
                     fontWeight: 700,
-                    whiteSpace: 'nowrap',
+                    whiteSpace: 'normal',
+                    textAlign: 'center',
+                    flex: '0 0 auto',
                   }}
                 >
                   {item.eventType.replace(/_/g, ' ')}

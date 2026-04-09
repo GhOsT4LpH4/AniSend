@@ -6,7 +6,7 @@ interface LandingProps {
 
 export function Landing({ onConnect, loading }: LandingProps) {
   return (
-    <div className="animate-slide-up stagger-children" style={{ display: 'flex', flexDirection: 'column', gap: '4rem', padding: '4rem 1.5rem' }}>
+    <div className="landing animate-slide-up stagger-children">
 
       {/* Brand Hero */}
       <header style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -23,8 +23,7 @@ export function Landing({ onConnect, loading }: LandingProps) {
         <button
           disabled={loading}
           onClick={onConnect}
-          className="btn-neo btn-primary"
-          style={{ padding: '1.5rem 3rem', fontSize: '1.25rem' }}
+          className="btn-neo btn-primary landing-cta-btn"
         >
           {loading ? 'Connecting...' : 'Connect Freighter Wallet →'}
         </button>
