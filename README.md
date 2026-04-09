@@ -1,6 +1,6 @@
-# 🐃 AniSend
+# AniSend
 
-**Livestock auction escrow for Filipino smallholder farmers — powered by Stellar Soroban.**
+Livestock auction escrow for Filipino smallholder farmers, built on Stellar.
 
 ---
 
@@ -10,148 +10,35 @@ A smallholder carabao farmer in Nueva Ecija, Philippines lists a ₱45,000 draft
 
 ## Solution
 
-AniSend lets the buyer deposit USDC into a Soroban escrow smart contract that auto-releases payment only when **both** buyer and seller confirm delivery on their phones — eliminating payment fraud at <₱0.50 gas cost, settling in 5 seconds.
+AniSend lets a buyer deposit funds into a Soroban smart contract escrow and releases payment only when **both** buyer and seller confirm delivery — making escrow economically viable for ₱5k–₱60k transactions with sub-cent fees and ~5 second settlement.
 
 ---
 
-## Timeline
+## Demo Flow (2 minutes)
 
-| Phase | Duration | Deliverable |
-|-------|----------|-------------|
-| Smart Contract | Day 1 (4 hrs) | `lib.rs` — escrow logic, tests passing |
-| Frontend MVP | Day 1–2 (6 hrs) | Mobile-first web UI (React/Next.js) |
-| Testnet Deploy | Day 2 (2 hrs) | Contract deployed, demo flow working |
-| Polish & Pitch | Day 2 (2 hrs) | Slide deck, 2-min demo recording |
-
-## Stellar Features Used
-
-- **USDC transfers** — stable-value payment, no crypto volatility
-- **Soroban smart contracts** — mutual-confirmation escrow on-chain
-- **Trustlines** — buyer/seller must hold USDC to participate
-
-## Vision & Purpose
-
-The Philippines has **12.5 million farming households**. Livestock fraud in rural Facebook groups is a documented, growing problem. AniSend brings **trustless escrow** to a market that has never had buyer protection — using Stellar's sub-cent fees to make escrow economically viable for $100–$800 transactions where Ethereum gas would eat the entire margin.
-
-Our vision: **every livestock sale in the Philippines settles through AniSend** — eliminating scam risk for the most vulnerable sellers in the agricultural economy.
+1. Connect Freighter wallet (testnet)
+2. Seller creates a deal (buyer address, amount, animal description)
+3. Buyer deposits into escrow on-chain
+4. Buyer confirms delivery
+5. Seller confirms handoff → funds release to seller
 
 ---
 
-## Prerequisites
+## Architecture
 
-| Tool | Version | Install |
-|------|---------|---------|
-| **Rust** | ≥ 1.84.0 | [rustup.rs](https://rustup.rs) |
-| **Soroban CLI** | ≥ 22.0.0 | `cargo install soroban-cli` |
-| **WASM target** | — | `rustup target add wasm32-unknown-unknown` |
+```
+Browser (React + Vite)
+  |-- Freighter Wallet API      (signing)
+  |-- @stellar/stellar-sdk      (transaction building, Soroban RPC)
+  |-- Convex                    (real-time off-chain index + activity logs)
+  |-- Soroban RPC               (on-chain reads and writes)
 
----
-
-## How to Build
-
-```bash
-# Compile the contract to WASM
-soroban contract build
+Stellar Testnet
+  |-- AniSend Soroban Contract  (mutual-confirmation escrow)
+  |-- Token Contract            (demo uses XLM via SAC; can be USDC/token contract)
 ```
 
-The output WASM will be at:
-```
-target/wasm32-unknown-unknown/release/anisend.wasm
-```
-
-## How to Test
-
-```bash
-# Run all 5 unit tests
-cargo test
-```
-
-Expected output:
-```
-running 5 tests
-test test::test_happy_path_end_to_end ... ok
-test test::test_unauthorized_deposit ... ok
-test test::test_state_transitions ... ok
-test test::test_cancel_refunds_buyer ... ok
-test test::test_cannot_cancel_completed ... ok
-
-test result: ok. 5 passed; 0 failed
-```
-
-## How to Deploy to Testnet
-
-```bash
-# 1. Configure Soroban for testnet
-soroban network add \
-  --global testnet \
-  --rpc-url https://soroban-testnet.stellar.org:443 \
-  --network-passphrase "Test SDF Network ; September 2015"
-
-# 2. Generate a keypair and fund it
-soroban keys generate --global deployer --network testnet
-soroban keys fund deployer --network testnet
-
-# 3. Deploy the contract
-soroban contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/anisend.wasm \
-  --source deployer \
-  --network testnet
-```
-
-This will output the deployed **Contract ID** (e.g. `CABC...XYZ`).
-
-## Sample CLI Invocation
-
-```bash
-# Replace CONTRACT_ID, SELLER_ADDR, BUYER_ADDR, USDC_TOKEN_ADDR with real values
-
-# 1. Create an escrow listing (seller lists a carabao for 45000 USDC units)
-soroban contract invoke \
-  --id CONTRACT_ID \
-  --source deployer \
-  --network testnet \
-  -- create_escrow \
-  --seller SELLER_ADDR \
-  --buyer BUYER_ADDR \
-  --token USDC_TOKEN_ADDR \
-  --amount 45000 \
-  --description carabao
-
-# 2. Buyer deposits into escrow
-soroban contract invoke \
-  --id CONTRACT_ID \
-  --source buyer-key \
-  --network testnet \
-  -- deposit \
-  --buyer BUYER_ADDR \
-  --deal_id 0
-
-# 3. Buyer confirms receipt
-soroban contract invoke \
-  --id CONTRACT_ID \
-  --source buyer-key \
-  --network testnet \
-  -- confirm_buyer \
-  --buyer BUYER_ADDR \
-  --deal_id 0
-
-# 4. Seller confirms handoff → funds released!
-soroban contract invoke \
-  --id CONTRACT_ID \
-  --source seller-key \
-  --network testnet \
-  -- confirm_seller \
-  --seller SELLER_ADDR \
-  --deal_id 0
-
-# 5. Query deal status
-soroban contract invoke \
-  --id CONTRACT_ID \
-  --source deployer \
-  --network testnet \
-  -- get_escrow \
-  --deal_id 0
-```
+No traditional backend server. Deal authority lives on-chain. Convex mirrors key deal metadata for fast UI lists and activity feeds (status is read from chain in the UI).
 
 ---
 
@@ -159,24 +46,216 @@ soroban contract invoke \
 
 ```
 anisend/
-├── Cargo.toml          # Rust manifest (soroban-sdk 22.0.0)
-├── IDEA.md             # Full dApp specification
-├── README.md           # This file
-└── src/
-    ├── lib.rs          # Soroban smart contract (6 public functions)
-    └── test.rs         # 5 unit tests
+├── Cargo.toml                  # Soroban contract manifest (soroban-sdk 22.0.0)
+├── IDEA.md                     # Full dApp spec
+├── src/
+│   ├── lib.rs                  # Soroban escrow contract
+│   └── test.rs                 # Unit tests
+└── frontend/
+    ├── convex/                 # Convex schema, queries, mutations
+    │   ├── schema.ts
+    │   ├── deals.ts
+    │   └── users.ts
+    ├── src/
+    │   ├── lib/
+    │   │   ├── stellar.ts      # Contract calls, Soroban RPC helpers
+    │   │   ├── freighter.ts    # Wallet connect + signing
+    │   │   └── config.ts       # Environment constants
+    │   ├── views/              # Page-level UI
+    │   ├── components/         # Shared UI components
+    │   ├── types/              # TypeScript interfaces (DealData, etc.)
+    │   └── styles/             # Global CSS design system
+    └── package.json
 ```
 
-## Contract Functions
+---
 
-| Function | Description | Auth Required |
-|----------|-------------|---------------|
-| `create_escrow` | Seller lists an animal for sale | Seller |
-| `deposit` | Buyer locks USDC into escrow | Buyer |
-| `confirm_buyer` | Buyer confirms animal received | Buyer |
-| `confirm_seller` | Seller confirms animal handed over | Seller |
-| `cancel` | Either party cancels, buyer refunded | Buyer or Seller |
-| `get_escrow` | Read-only query for deal details | None |
+## Stellar Features Used
+
+| Feature | Usage |
+|---|---|
+| Soroban smart contracts | Escrow state machine and fund custody on-chain |
+| Soroban token interface | Transfers in/out of escrow (demo uses XLM via SAC; can be USDC) |
+| Trustlines (when using USDC) | Participants must hold/trust the token before receiving funds |
+| Soroban RPC | Read/write contract state from the UI |
+
+---
+
+## Smart Contract
+
+Deployed on Stellar testnet:
+
+```
+<SET_THIS_TO_YOUR_DEPLOYED_CONTRACT_ID>
+```
+
+Set your deployed Contract ID in the frontend env (`VITE_CONTRACT_ID`) to point the UI at the correct contract instance.
+
+### Contract Functions
+
+| Function | Caller | Description |
+|---|---|---|
+| `create_escrow(seller, buyer, token, amount, description)` | Seller | Creates a listing, returns deal ID |
+| `deposit(buyer, deal_id)` | Buyer | Transfers token amount into escrow |
+| `confirm_buyer(buyer, deal_id)` | Buyer | Marks buyer confirmation; may release funds |
+| `confirm_seller(seller, deal_id)` | Seller | Marks seller confirmation; may release funds |
+| `cancel(caller, deal_id)` | Buyer or Seller | Cancels; refunds buyer if funded (buyer-only + timelock) |
+| `get_escrow(deal_id)` | Anyone | Read-only deal state |
+
+### Escrow Status Lifecycle
+
+```
+AwaitingDeposit --> Funded --> BuyerConfirmed ----\
+                 |         \-> SellerConfirmed ---+--> Completed (funds released)
+                 \-------------------------------> Cancelled (refund rules apply)
+```
+![alt text](images/LandingPage.png)
+---
+
+## Prerequisites
+
+**For the smart contract:**
+- Rust (latest stable)
+- Soroban CLI (compatible with `soroban-sdk = 22.0.0`)
+- WASM target: `wasm32-unknown-unknown`
+- A Stellar testnet account funded via Friendbot
+
+**For the frontend:**
+- Node.js 18+
+- Freighter browser extension set to Testnet
+- A Convex deployment (for indexing/activity logs)
+
+---
+
+## Setup
+
+### Smart Contract
+
+```bash
+# Build
+soroban contract build
+
+# Test
+cargo test
+
+# (Optional) Configure Soroban testnet
+soroban network add \
+  --global testnet \
+  --rpc-url https://soroban-testnet.stellar.org:443 \
+  --network-passphrase "Test SDF Network ; September 2015"
+
+# Deploy to testnet
+soroban keys generate --global deployer --network testnet
+soroban keys fund deployer --network testnet
+soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/anisend.wasm \
+  --source deployer \
+  --network testnet
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The app runs at `http://localhost:5173`.
+
+**Environment variables** (`frontend/.env`):
+
+```env
+# Required
+VITE_CONVEX_URL=https://<your-convex-deployment>.convex.cloud
+VITE_CONTRACT_ID=<deployed contract ID>
+
+# Recommended
+VITE_NETWORK=testnet
+VITE_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+
+# Token contract used by the demo UI.
+# The repo defaults to the Stellar Asset Contract (SAC) for native XLM on testnet.
+VITE_XLM_TOKEN_CONTRACT_ID=<token contract id>
+
+# Legacy fallback supported by the code (optional)
+VITE_USDC_CONTRACT_ID=<token contract id>
+```
+
+### Convex (real-time index + logs)
+
+```bash
+cd frontend
+npx convex dev
+```
+
+---
+
+## Sample CLI Invocations
+
+Notes:
+- `amount` is in the token’s smallest unit (the demo UI treats amounts as 7-decimal units like XLM).
+- Example: 45,000.0000000 units → `450000000000`.
+
+```bash
+# Create deal (seller lists a carabao for 45,000 units)
+soroban contract invoke \
+  --id <CONTRACT_ID> \
+  --source <SELLER_KEY> \
+  --network testnet \
+  -- create_escrow \
+  --seller <SELLER_ADDRESS> \
+  --buyer <BUYER_ADDRESS> \
+  --token <TOKEN_CONTRACT_ID> \
+  --amount 450000000000 \
+  --description carabao
+
+# Buyer deposits into escrow
+soroban contract invoke \
+  --id <CONTRACT_ID> \
+  --source <BUYER_KEY> \
+  --network testnet \
+  -- deposit \
+  --buyer <BUYER_ADDRESS> \
+  --deal_id 0
+
+# Buyer confirms delivery
+soroban contract invoke \
+  --id <CONTRACT_ID> \
+  --source <BUYER_KEY> \
+  --network testnet \
+  -- confirm_buyer \
+  --buyer <BUYER_ADDRESS> \
+  --deal_id 0
+
+# Seller confirms handoff → funds release
+soroban contract invoke \
+  --id <CONTRACT_ID> \
+  --source <SELLER_KEY> \
+  --network testnet \
+  -- confirm_seller \
+  --seller <SELLER_ADDRESS> \
+  --deal_id 0
+
+# Read deal state
+soroban contract invoke \
+  --id <CONTRACT_ID> \
+  --network testnet \
+  -- get_escrow \
+  --deal_id 0
+```
+
+---
+
+## Target Users
+
+Filipino smallholder farmers and rural livestock traders selling animals via Facebook groups/Marketplace and local auctions who have no buyer protection and are vulnerable to payment fraud. AniSend provides escrow with near-instant settlement and fees low enough to work at ₱5,000–₱60,000 ticket sizes.
+
+---
+
+## Why Stellar
+
+Stellar’s fast finality and sub-cent fees make escrow viable for everyday transactions. Soroban contracts let AniSend enforce mutual confirmation and timelocks on-chain, while keeping the UX lightweight via wallet signing (Freighter) and low-friction RPC reads/writes.
 
 ---
 
