@@ -62,7 +62,6 @@ No traditional backend server. Deal authority lives on-chain. Convex mirrors key
 ```
 anisend/
 ├── Cargo.toml                  # Soroban contract manifest (soroban-sdk 22.0.0)
-├── IDEA.md                     # Full dApp spec
 ├── src/
 │   ├── lib.rs                  # Soroban escrow contract
 │   └── test.rs                 # Unit tests
@@ -102,8 +101,12 @@ anisend/
 Deployed on Stellar testnet:
 
 ```
-<SET_THIS_TO_YOUR_DEPLOYED_CONTRACT_ID>
+CB5ATT2HG2EDOPWD7D6JQYVR5KQLS5RKIY4GF44HWIF7V6B4PT7FTCFX
 ```
+
+Explorer: https://stellar.expert/explorer/testnet/contract/CB5ATT2HG2EDOPWD7D6JQYVR5KQLS5RKIY4GF44HWIF7V6B4PT7FTCFX?filter=interface
+
+![Contract](images/stellar-contract.png)
 
 Set your deployed Contract ID in the frontend env (`VITE_CONTRACT_ID`) to point the UI at the correct contract instance.
 
@@ -134,7 +137,24 @@ AwaitingDeposit --> Funded --> BuyerConfirmed ----\
                  |         \-> SellerConfirmed ---+--> Completed (funds released)
                  \-------------------------------> Cancelled (refund rules apply)
 ```
-![AniSend landing page](images/LandingPage.png)
+
+### Landing Page
+![AniSend landing page](images/landing-page.png)
+
+### Dashboard Page
+![AniSend dashboard page](images/dashboard-page.png)
+
+### Sell Page
+![AniSend sell page](images/sell-page.png)
+
+### History Page
+![AniSend history page](images/history-page.png)
+
+### Deal Details Page
+![AniSend deal details page](images/deal-details-page.png)
+
+### Buyer Deal Details Page
+![AniSend buyer deal details page](images/buyer-deal-details-page.png)
 ---
 
 ## 🧰 Prerequisites
