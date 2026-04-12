@@ -1,22 +1,31 @@
-# <img src="frontend/public/favicon.svg" alt="AniSend icon" width="28" height="28" style="vertical-align: -4px; margin-right: 8px;" /> AniSend
+# <img src="frontend/public/favicon.svg" alt="AniSend icon" width="36" height="36" style="vertical-align: -6px; margin-right: 8px;" /> AniSend
 
-Livestock auction escrow for Filipino smallholder farmers, built on Stellar.
+> **Trust-free livestock escrow for Filipino smallholder farmers.** Lock funds on-chain. Release only when both parties confirm. Built natively on the Soroban blockchain.
+
+![Static Badge](https://img.shields.io/badge/Blockchain-Stellar_Soroban-black?style=for-the-badge&logo=stellar)
+![Static Badge](https://img.shields.io/badge/Frontend-React_Vite-61DAFB?style=for-the-badge&logo=react)
+![Static Badge](https://img.shields.io/badge/Backend-Convex_DB-EC2222?style=for-the-badge)
+![Static Badge](https://img.shields.io/badge/Network-Testnet-green?style=for-the-badge)
 
 ---
 
-## ⚠️ Problem
+## 🌪️ The Problem
+A smallholder carabao farmer in Nueva Ecija, Philippines lists a ₱45,000 draft animal on Facebook Marketplace but gets scammed by a buyer who sends a fake GCash screenshot — losing both the carabao and the payment, with zero recourse. Traditional escrow services are too expensive, complex, or physically distant for rural farmers to leverage.
 
-A smallholder carabao farmer in Nueva Ecija, Philippines lists a ₱45,000 draft animal on Facebook Marketplace but gets scammed by a buyer who sends a fake GCash screenshot — losing both the carabao and the payment, with zero recourse.
+## 🛡️ The Soroban Solution
+AniSend leverages the **Stellar (Soroban)** blockchain to create a high-performance, transparent escrow marketplace for agricultural trading.
+- **On-Chain Custody**: The buyer deposits the exact token amount into the an atomic escrow smart contract.
+- **Mutual Confirmation**: Funds are released only after **both** buyer and seller independently confirm the handover.
+- **Micro-Fee Economics**: Escrow becomes economically viable even for ₱5k–₱60k livestock transactions with sub-cent fees and ~5-second settlement times.
+- **Timelocked Refunds**: Prevents "stuck money". If a deal fails to materialize, the buyer can safely reclaim their funds after a predefined timelock expires.
 
-## ✅ Solution
+---
 
-AniSend lets a buyer deposit funds into a Soroban smart contract escrow and releases payment only when **both** buyer and seller confirm delivery — making escrow economically viable for ₱5k–₱60k transactions with sub-cent fees and ~5 second settlement.
-
-**What the dApp does (in plain terms):**
-- **Locks funds on-chain**: the buyer deposits the exact token amount into the escrow contract.
-- **Enforces mutual confirmation**: funds are released only after both buyer and seller confirm.
-- **Prevents “stuck money”**: after deposit, the buyer can reclaim funds via a **timelocked refund** if the flow doesn’t complete.
-- **Keeps the UI fast**: Convex mirrors deal metadata and logs activity, while the UI reads the authoritative status from chain.
+## 🚀 Core Functions & Features
+- **The Dashboard**: A real-time hub tracking active deals, total working capital locked in escrow, and transaction history.
+- **Deal Listings**: Sellers can create targeted, smart-contract-backed listings defining the animal, price, and designated buyer.
+- **Dual-Approval Flow**: Both parties maintain leverage. A buyer inspects the animal and confirms; the seller hands over the animal and confirms. The contract autonomously settles.
+- **Hybrid Real-Time Sync**: Convex handles UI indexing and feeds for instant feedback, while the UI directly queries the Soroban RPC to confirm the **authoritative truth** of all escrow states and balances.
 
 ---
 
@@ -34,9 +43,9 @@ Optional paths:
 
 ---
 
-## 🧱 Architecture
+## 🏗️ Architecture
 
-```
+```text
 Browser (React + Vite)
   |-- Freighter Wallet API      (signing)
   |-- @stellar/stellar-sdk      (transaction building, Soroban RPC)
@@ -84,80 +93,84 @@ anisend/
 
 ---
 
-## ⭐ Stellar Features Used
+## 🏗️ Stellar Features Used
 
 | Feature | Usage |
-|---|---|
-| Soroban smart contracts | Escrow state machine and fund custody on-chain |
-| Soroban token interface | Transfers in/out of escrow (demo uses XLM via SAC; can be USDC) |
-| Trustlines (when using USDC) | Participants must hold/trust the token before receiving funds |
-| Soroban RPC | Read/write contract state from the UI |
-| Events | Contract emits events (`created`, `deposit`, `c_buyer`, `c_seller`, `cancel`) for indexers/UI |
+| :--- | :--- |
+| **Soroban Smart Contracts** | Escrow state machine, mutual release mechanics, and fund custody on-chain. |
+| **Soroban Token Interface** | Trustless transfers in/out of escrow. The repo defaults to XLM via SAC, but fully supports USDC. |
+| **Contract Timelocks** | Enforces a minimum expiration ledger before a buyer can unilaterally withdraw and cancel a funded deal. |
+| **Soroban RPC** | Real-time querying to sync the UI against authoritative on-chain state. |
+| **Contract Events** | Emitting structured logs (`deposit`, `c_buyer`, `c_seller`) to build historical tracking. |
 
 ---
 
-## 📜 Smart Contract
+## 📍 Deployment & Contract Addresses
 
-Deployed on Stellar testnet:
+| Setup Layer | Identifiers |
+| :--- | :--- |
+| **Marketplace Contract** | `CB5ATT2HG2EDOPWD7D6JQYVR5KQLS5RKIY4GF44HWIF7V6B4PT7FTCFX` |
+| **Network Phase** | `Stellar Testnet` |
+| **Settlement Token** | `Native XLM` |
 
-```
-CB5ATT2HG2EDOPWD7D6JQYVR5KQLS5RKIY4GF44HWIF7V6B4PT7FTCFX
-```
+![Contract Profile](images/stellar-contract.png)
 
-Explorer: https://stellar.expert/explorer/testnet/contract/CB5ATT2HG2EDOPWD7D6JQYVR5KQLS5RKIY4GF44HWIF7V6B4PT7FTCFX?filter=interface
+*(Note: Ensure you set `VITE_CONTRACT_ID` in your frontend environment variables to point to this instance.)*
 
-![Contract](images/stellar-contract.png)
+---
 
-Set your deployed Contract ID in the frontend env (`VITE_CONTRACT_ID`) to point the UI at the correct contract instance.
+## 📜 Smart Contract Interface
 
-### 🧩 Contract Functions
+AniSend exposes strict mutative logic protecting user assets unconditionally. 
 
 | Function | Caller | Description |
-|---|---|---|
-| `create_escrow(seller, buyer, token, amount, description)` | Seller | Creates a listing, returns deal ID |
-| `deposit(buyer, deal_id)` | Buyer | Transfers token amount into escrow |
-| `confirm_buyer(buyer, deal_id)` | Buyer | Marks buyer confirmation; may release funds |
-| `confirm_seller(seller, deal_id)` | Seller | Marks seller confirmation; may release funds |
-| `cancel(caller, deal_id)` | Buyer or Seller | Cancels; refunds buyer if funded (buyer-only + timelock) |
-| `get_escrow(deal_id)` | Anyone | Read-only deal state |
+| :--- | :--- | :--- |
+| `create_escrow` | **Seller** | Initializes an agreement (buyer, asset, amount). Returns unique `deal_id`. |
+| `deposit` | **Buyer** | Executes token transfer from buyer to contract hold. |
+| `confirm_buyer` | **Buyer** | Emits a readiness signature. Releases funds if Seller has also confirmed. |
+| `confirm_seller`| **Seller** | Emits handover signature. Releases funds if Buyer has also confirmed. |
+| `cancel` | **Either** | Dismantles un-funded deals. Reverts funded deals **only** to the Buyer if the timelock limit has expired. |
+| `get_escrow` | **Anyone** | Unauthenticated fetch to view raw, definitive escrow struct parameters. |
 
-**Key rules enforced by the contract (`src/lib.rs`):**
-- **Authorized roles**: only the designated `seller`/`buyer` can act on a deal.
-- **Exact-amount deposit**: escrow transfers the deal’s configured `amount` from buyer → contract.
-- **Mutual confirmation release**: whichever side confirms second triggers the payout (contract → seller).
-- **Cancellation safety**:
-  - **AwaitingDeposit**: seller or buyer may cancel freely (nothing to refund).
-  - **After deposit**: only the buyer may cancel, and only **after `expires_ledger`** (timelock) to avoid griefing and prevent indefinite lockups.
-- **Token-agnostic**: uses Soroban token interface; works with XLM via SAC on testnet or any token contract (e.g., USDC).
-
-### 🔄 Escrow Status Lifecycle
-
-```
-AwaitingDeposit --> Funded --> BuyerConfirmed ----\
-                 |         \-> SellerConfirmed ---+--> Completed (funds released)
-                 \-------------------------------> Cancelled (refund rules apply)
-```
-
-### Landing Page
-![AniSend landing page](images/landing-page.png)
-
-### Dashboard Page
-![AniSend dashboard page](images/dashboard-page.png)
-
-### Sell Page
-![AniSend sell page](images/sell-page.png)
-
-### History Page
-![AniSend history page](images/history-page.png)
-
-### Deal Details Page
-![AniSend deal details page](images/deal-details-page.png)
-
-### Buyer Deal Details Page
-![AniSend buyer deal details page](images/buyer-deal-details-page.png)
 ---
 
-## 🧰 Prerequisites
+## 🚀 Live Interface Walkthrough
+
+Experience a seamless path to trustless agricultural trading. Check out the flow below:
+
+### 🛡️ 1. Global View & Connect
+Starting the DApp and viewing system metrics via an intuitive dashboard.
+| Landing Terminal | Main Dashboard |
+| :---: | :---: |
+| ![Landing Page](images/landing-page.png) | ![Dashboard Page](images/dashboard-page.png) |
+
+### 🌾 2. Creating an Escrow Deal
+The seller initiates the transaction, detailing the livestock profile and securing the target buyer's address.
+| Initial Listing | Contract Validation |
+| :---: | :---: |
+| ![Sell Page](images/sell-page.png) | ![Validation](images/create-deal-validation.png) |
+
+### 🔐 3. Buyer Deposit Lifecycle
+The buyer reviews the smart contract criteria and escrows their payment on-chain, securing their intent to purchase.
+| Buyer Review | Approving Deposit |
+| :---: | :---: |
+| ![Buyer Review](images/buyer-deal-details-page.png) | ![Deposit Flow](images/buyer-deposit-flow.png) |
+
+### 🤝 4. Mutual Confirmation (The Trustless Handshake)
+Both parties must securely cryptograph their approval. When one signs, the state updates. When the second signs, the chain automatically releases the capital.
+| Buyer Locks Approval | Seller Receives Notice | Seller Countersigns |
+| :---: | :---: | :---: |
+| ![Buyer Confirm](images/buyer-confirm-view.png) | ![Seller Notice](images/seller-funded-view.png) | ![Seller Confirms](images/seller-confirm-view.png) |
+
+### 🏆 5. Fulfillment & History
+The contract instantly liquidates, returning absolute trust to the platform, backed by immutable action logs.
+| Instant Payout Complete | Immutable Deal History |
+| :---: | :---: |
+| ![Deal Complete](images/seller-deal-completed-view.png) | ![History Panel](images/history-page.png) |
+
+---
+
+## 📦 Prerequisites & Local Setup
 
 **For the smart contract:**
 - Rust (latest stable)
@@ -165,23 +178,20 @@ AwaitingDeposit --> Funded --> BuyerConfirmed ----\
 - WASM target: `wasm32-unknown-unknown`
 - A Stellar testnet account funded via Friendbot
 
-**For the frontend:**
+**Frontend Environment:**
 - Node.js 18+
-- Freighter browser extension set to Testnet
-- A Convex deployment (for indexing/activity logs)
+- Freighter browser extension (Network: Testnet)
+- Convex deployment (for real-time metadata indexing)
 
----
+### 🖥️ Local Pipeline
 
-## 🛠️ Setup
-
-### 📦 Smart Contract
-
-```bash
+1. **Clone & Target Smart Contract (Optional)**:
+   ```bash
 # Build
-soroban contract build
+   soroban contract build
 
 # Test
-cargo test
+   cargo test
 
 # (Optional) Configure Soroban testnet
 soroban network add \
@@ -196,15 +206,14 @@ soroban contract deploy \
   --wasm target/wasm32-unknown-unknown/release/anisend.wasm \
   --source deployer \
   --network testnet
-```
+   ```
 
-### 🖥️ Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
+2. **Run The UI**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
 The app runs at `http://localhost:5173`.
 
@@ -229,14 +238,14 @@ VITE_USDC_CONTRACT_ID=<token contract id>
 
 ### 🧾 Convex (real-time index + logs)
 
-```bash
-cd frontend
-npx convex dev
-```
+   ```bash
+   cd frontend
+   npx convex dev
+   ```
 
 ---
 
-## ⌨️ Sample CLI Invocations
+## 🛠️ Sample Execution / CLI Testing
 
 Notes:
 - `amount` is in the token’s smallest unit (the demo UI treats amounts as 7-decimal units like XLM).
@@ -272,7 +281,7 @@ soroban contract invoke \
   -- confirm_buyer \
   --buyer <BUYER_ADDRESS> \
   --deal_id 0
-
+  
 # Seller confirms handoff → funds release
 soroban contract invoke \
   --id <CONTRACT_ID> \
@@ -292,7 +301,7 @@ soroban contract invoke \
 
 ---
 
-## 👥 Target Users
+## 👥 Target Users & Value
 
 Filipino smallholder farmers and rural livestock traders selling animals via Facebook groups/Marketplace and local auctions who have no buyer protection and are vulnerable to payment fraud. AniSend provides escrow with near-instant settlement and fees low enough to work at ₱5,000–₱60,000 ticket sizes.
 
@@ -305,5 +314,4 @@ Stellar’s fast finality and sub-cent fees make escrow viable for everyday tran
 ---
 
 ## 📄 License
-
 MIT — see [LICENSE](LICENSE) for details.
