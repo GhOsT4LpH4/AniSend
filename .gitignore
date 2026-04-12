@@ -26,7 +26,6 @@ Thumbs.db
 *.log
 .test-result
 
-test_snapshots/
 
 # Generated files
 *.rmeta
