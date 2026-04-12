@@ -1,4 +1,4 @@
-# <img src="images/icon.svg" alt="AniSend icon" width="28" height="28" style="vertical-align: -4px; margin-right: 8px;" /> AniSend
+# <img src="public/favicon.svg" alt="AniSend icon" width="28" height="28" style="vertical-align: -4px; margin-right: 8px;" /> AniSend
 
 Livestock auction escrow for Filipino smallholder farmers, built on Stellar.
 

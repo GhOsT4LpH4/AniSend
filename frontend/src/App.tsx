@@ -48,6 +48,12 @@ function App() {
     }
   };
 
+  const handleDisconnect = () => {
+    setWallet(null);
+    setCurrentView('CONNECT');
+    setActiveDealId('');
+  };
+
   const handleNavigate = (view: ViewState, dealId?: string) => {
     if (dealId) setActiveDealId(dealId);
     setCurrentView(view);
@@ -110,6 +116,7 @@ function App() {
         currentView={currentView}
         onNavigate={handleNavigate as (view: string) => void}
         onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
       />
       <main className="page-content">{renderView()}</main>
       <BottomNavBar currentView={currentView} onNavigate={handleNavigate as (view: string) => void} />

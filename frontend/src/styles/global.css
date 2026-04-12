@@ -1,20 +1,31 @@
 /* ---- CSS Custom Properties (Design Tokens) ---- */
 :root {
-  /* Colors — Cyber-Farm Dark Brutalism */
+  /* Colors — Cyber-Farm Dark Brutalism — AniSend Edition */
   --bg: #0f1115;
   --bg-white: #161b22;
   --text-main: #e5e7eb;
   --text-muted: #9ca3af;
-  --accent-green: #218a47;
-  --accent-yellow: #b88e13;
+
+  /* AniSend Earth-Tone Palette */
+  --accent-green: #218a47;          /* keep for backwards compat */
+  --accent-paddy: #3d7a38;          /* rice paddy — primary brand green */
+  --accent-paddy-bright: #52a84a;   /* hover / highlight */
+  --accent-earth: #7c5c2e;          /* carabao leather brown */
+  --accent-harvest: #c89b1a;        /* harvest gold (replaces flat yellow) */
+  --accent-clay: #c1440e;           /* Philippine clay red — danger */
+  --accent-yellow: #b88e13;         /* kept for badge compat */
   --accent-red: #ef4444;
   --accent-blue: #3b82f6;
   --accent-brown: #92400e;
   --surface-container: #1f2937;
   --surface-dim: #374151;
 
-  /* Typography */
-  --font-heading: 'Space Grotesk', sans-serif;
+  /* Glows */
+  --glow-paddy: 0 0 20px rgba(61, 122, 56, 0.45);
+  --glow-harvest: 0 0 16px rgba(200, 155, 26, 0.35);
+
+  /* Typography — Syne for headings (distinct from HatidPay's Space Grotesk) */
+  --font-heading: 'Syne', sans-serif;
   --font-body: 'Inter', sans-serif;
 
   /* Borders & Shadows */
@@ -23,11 +34,12 @@
   --shadow-neo: 4px 4px 0px 0px var(--text-main);
   --shadow-neo-lg: 6px 6px 0px 0px var(--text-main);
   --shadow-neo-sm: 2px 2px 0px 0px var(--text-main);
+  --shadow-paddy: 4px 4px 0px 0px var(--accent-paddy);
 
   /* Layout */
   --topbar-height: 72px;
   --bottombar-height: 72px;
-  --max-width: 1600px;
+  --max-width: 1800px;
 }
 
 /* ---- Reset ---- */
@@ -40,6 +52,8 @@
 /* ---- Base ---- */
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
@@ -51,6 +65,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* ---- Responsive helpers ---- */
@@ -308,7 +324,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: clamp(2rem, 6vw, 4rem);
-  padding: clamp(1.5rem, 6vw, 4rem) 1.5rem;
+  padding: clamp(1.5rem, 6vw, 4rem) 0; /* Let .page-content handle horizontal padding */
+}
+
+.landing-split > * {
+  min-width: 0;
 }
 
 .landing-cta-btn {
@@ -318,13 +338,8 @@ button {
   text-align: center;
 }
 
-@media (max-width: 420px) {
-  .landing {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  /* Allow long CTA labels to wrap on very small screens */
+@media (max-width: 768px) {
+  /* Allow long CTA labels to wrap on small screens when scaling */
   .landing-cta-btn {
     white-space: normal;
     line-height: 1.2;
@@ -602,3 +617,385 @@ input {
   font-family: inherit;
   font-size: inherit;
 }
+
+/* ========================================================
+   ANISEND-SPECIFIC DESIGN EXTENSIONS
+   ======================================================== */
+
+/* ---- Primary button — Paddy green override ---- */
+.btn-neo.btn-primary {
+  background: var(--accent-paddy);
+  color: #fff;
+  box-shadow: var(--shadow-paddy);
+}
+.btn-neo.btn-primary:hover:not(:disabled) {
+  background: var(--accent-paddy-bright);
+  color: #fff;
+  box-shadow: 5px 5px 0px 0px var(--accent-paddy);
+}
+
+/* ---- Shimmer CTA (Landing page connect button) ---- */
+@keyframes shimmerBtn {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.btn-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--accent-paddy) 0%,
+    var(--accent-paddy-bright) 35%,
+    var(--accent-harvest) 50%,
+    var(--accent-paddy-bright) 65%,
+    var(--accent-paddy) 100%
+  );
+  background-size: 200% auto;
+  animation: shimmerBtn 3s linear infinite;
+  border-color: var(--accent-paddy);
+  box-shadow: var(--shadow-paddy), var(--glow-paddy);
+  color: #fff;
+}
+.btn-shimmer:hover:not(:disabled) {
+  box-shadow: 6px 6px 0px 0px var(--accent-paddy), var(--glow-paddy);
+}
+
+/* ---- Heartbeat — balance card ---- */
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14%       { transform: scale(1.03); }
+  28%       { transform: scale(1); }
+  42%       { transform: scale(1.015); }
+  70%       { transform: scale(1); }
+}
+.animate-heartbeat {
+  animation: heartbeat 2.4s ease-in-out infinite;
+}
+
+/* ---- Status pulse ring — timeline current step ---- */
+@keyframes statusPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(61, 122, 56, 0.7); }
+  50%       { box-shadow: 0 0 0 8px rgba(61, 122, 56, 0); }
+}
+.pulse-ring {
+  animation: statusPulse 1.8s ease-in-out infinite;
+}
+
+/* ---- Animal Tile Picker ---- */
+.animal-tile-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+}
+.animal-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.6rem 0.875rem;
+  border: 3px solid var(--text-main);
+  background: var(--bg-white);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.1s ease;
+  box-shadow: var(--shadow-neo-sm);
+  min-width: 64px;
+  user-select: none;
+}
+.animal-tile:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-neo);
+}
+.animal-tile[data-selected="true"] {
+  background: var(--accent-paddy);
+  border-color: var(--accent-paddy);
+  color: #fff;
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-paddy);
+}
+.animal-tile__emoji {
+  font-size: 1.625rem;
+  line-height: 1;
+}
+.animal-tile__label {
+  font-family: var(--font-heading);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ---- Trust Strip (Landing page) ---- */
+.trust-strip {
+  display: flex;
+  gap: 0;
+  justify-content: stretch;
+  flex-wrap: wrap;
+  border: 4px solid var(--text-main);
+  background: var(--surface-container);
+  box-shadow: var(--shadow-neo);
+  overflow: hidden;
+}
+.trust-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  padding: 1.5rem 2rem;
+  flex: 1 1 160px;
+  border-right: 2px solid var(--text-main);
+  text-align: center;
+}
+.trust-item:last-child {
+  border-right: none;
+}
+.trust-number {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--accent-paddy-bright);
+  line-height: 1;
+}
+.trust-label {
+  font-family: var(--font-heading);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* ---- Copyable Address Pill ---- */
+.copyable-address {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border: 2px solid var(--surface-dim);
+  background: var(--surface-container);
+  cursor: pointer;
+  font-family: 'Space Grotesk', monospace;
+  font-size: 0.8125rem;
+  color: var(--text-main);
+  transition: border-color 0.15s, background 0.15s;
+  word-break: break-all;
+}
+.copyable-address:hover {
+  border-color: var(--accent-paddy);
+  background: var(--bg-white);
+}
+
+/* ---- Split-screen Landing layout (desktop) ---- */
+.landing-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 3rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .landing-split {
+    grid-template-columns: 1fr 1fr;
+    min-height: 40vh;
+    gap: 4rem;
+  }
+}
+
+/* ---- Landing page step timeline (horizontal) ---- */
+.step-timeline {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.step-timeline::-webkit-scrollbar { display: none; }
+.step-item {
+  flex: 1 0 220px;
+  border: 4px solid var(--text-main);
+  border-right-width: 0;
+  padding: 1.5rem;
+  background: var(--bg-white);
+  position: relative;
+  transition: background 0.15s;
+}
+.step-item:last-child {
+  border-right-width: 4px;
+}
+.step-item:hover {
+  background: var(--surface-container);
+}
+.step-item__num {
+  font-family: var(--font-heading);
+  font-size: 3rem;
+  font-weight: 800;
+  opacity: 0.12;
+  line-height: 1;
+}
+.step-item__title {
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 0.75rem;
+  letter-spacing: -0.01em;
+}
+.step-item__body {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}
+.step-item__accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+/* ---- Deal Mock Preview (Landing hero right column) ---- */
+.deal-mock {
+  border: 4px solid var(--text-main);
+  box-shadow: var(--shadow-neo-lg);
+  background: var(--bg-white);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  pointer-events: none;
+}
+.deal-mock__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.deal-mock__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 2px solid var(--surface-dim);
+  gap: 1rem;
+}
+.deal-mock__row:last-child { border-bottom: none; }
+
+/* ---- Vertical Deal Timeline (DealDetail) ---- */
+.deal-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+.deal-timeline::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  background: var(--surface-dim);
+}
+.deal-timeline__step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  position: relative;
+}
+.deal-timeline__dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 3px solid var(--surface-dim);
+  background: var(--bg);
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  position: relative;
+  z-index: 1;
+  transition: border-color 0.2s, background 0.2s;
+}
+.deal-timeline__dot--done {
+  background: var(--accent-paddy);
+  border-color: var(--accent-paddy);
+}
+.deal-timeline__dot--current {
+  background: var(--accent-paddy-bright);
+  border-color: var(--accent-paddy-bright);
+}
+.deal-timeline__dot--current.pulse-ring {
+  animation: statusPulse 1.8s ease-in-out infinite;
+}
+.deal-timeline__label {
+  font-family: var(--font-heading);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0.2rem;
+}
+.deal-timeline__label--done { color: var(--accent-paddy-bright); }
+.deal-timeline__label--current { color: var(--text-main); }
+.deal-timeline__label--pending { color: var(--text-muted); opacity: 0.5; }
+
+/* ---- Disconnect button ---- */
+.btn-disconnect {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-heading);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.4rem 0.75rem;
+  border: 2px solid var(--accent-clay);
+  background: transparent;
+  color: var(--accent-clay);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+.btn-disconnect:hover {
+  background: var(--accent-clay);
+  color: #fff;
+}
+
+/* ---- Role badge (Dashboard) ---- */
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.625rem;
+  border: 2px solid var(--accent-paddy);
+  background: transparent;
+  font-family: var(--font-heading);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-paddy-bright);
+}
+
+/* ---- BottomNavBar active tab — paddy green ---- */
+.bnav-active {
+  background: var(--accent-paddy) !important;
+}
+
+/* ---- Dashboard sidebar layout (desktop) ---- */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2.5rem;
+}
+@media (min-width: 1100px) {
+  .dashboard-layout {
+    grid-template-columns: 260px 1fr;
+    gap: 2.5rem;
+    align-items: start;
+  }
+  .dashboard-sidebar {
+    position: sticky;
+    top: calc(var(--topbar-height) + 1.5rem);
+  }
+}
+
